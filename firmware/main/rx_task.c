@@ -92,7 +92,7 @@ void rx_task_process_packet(unsigned int run_index, const uint8_t *data, size_t 
     } else if (frame_id == next_slot->frame_id) {
         target_slot = next_slot;
     } else if (frame_is_newer(frame_id, current_slot->frame_id)) {
-        if (next_slot->frame_id == 0 || frame_is_newer(next_slot->frame_id, frame_id)) {
+        if (next_slot->frame_id == 0 || frame_is_newer(frame_id, next_slot->frame_id)) {
             clear_slot(next_slot);
             next_slot->frame_id = frame_id;
             target_slot = next_slot;
