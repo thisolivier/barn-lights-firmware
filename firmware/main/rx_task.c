@@ -163,7 +163,7 @@ void rx_task_start(void) {
     clear_slot(&frame_slots[1]);
 #ifndef UNIT_TEST
     for (unsigned int run = 0; run < RUN_COUNT; ++run) {
-        xTaskCreate(udp_listener_task, "rx_run", 4096, (void *)(uintptr_t)run, 5, NULL);
+        xTaskCreatePinnedToCore(udp_listener_task, "rx_run", 4096, (void *)(uintptr_t)run, 5, NULL, 0);
     }
 #endif
 }

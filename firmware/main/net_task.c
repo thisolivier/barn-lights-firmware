@@ -134,7 +134,7 @@ static void network_task(void *param)
 EventGroupHandle_t net_task_start(void)
 {
     network_event_group = xEventGroupCreate();
-    xTaskCreate(network_task, "net_task", 4096, NULL, 5, NULL);
+    xTaskCreatePinnedToCore(network_task, "net_task", 4096, NULL, 5, NULL, 0);
     return network_event_group;
 }
 
