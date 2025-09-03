@@ -9,6 +9,7 @@
 #include "freertos/task.h"
 #include "driver/rmt_tx.h"
 #include "driver/rmt_encoder.h"
+#include "led_strip_encoder.h"
 #include "soc/soc_caps.h"
 #include "esp_log.h"
 #include "esp_rom_sys.h"
@@ -17,15 +18,6 @@
 #include <string.h>
 
 #define RMT_CLK_DIV 2
-#define RMT_TICKS_PER_BIT (80000000 / RMT_CLK_DIV / 800000)
-_Static_assert(RMT_TICKS_PER_BIT == 50, "Unexpected RMT bit timing");
-
-#define RMT_T0H_TICKS 16
-#define RMT_T0L_TICKS (RMT_TICKS_PER_BIT - RMT_T0H_TICKS)
-#define RMT_T1H_TICKS 32
-#define RMT_T1L_TICKS (RMT_TICKS_PER_BIT - RMT_T1H_TICKS)
-_Static_assert(RMT_T0H_TICKS + RMT_T0L_TICKS == RMT_TICKS_PER_BIT, "T0 timing");
-_Static_assert(RMT_T1H_TICKS + RMT_T1L_TICKS == RMT_TICKS_PER_BIT, "T1 timing");
 
 #define RUN0_GPIO 12
 #define RUN1_GPIO 13
@@ -62,10 +54,9 @@ _Static_assert(RUN3_GPIO >= 0 && RUN3_GPIO <= 39, "RUN3_GPIO out of range");
 #endif
 
 
-static rmt_symbol_word_t *rmt_items[RUN_COUNT];
-static size_t rmt_item_count[RUN_COUNT];
+static uint8_t *grb_buffers[RUN_COUNT];
 static rmt_channel_handle_t rmt_channels[RUN_COUNT];
-static rmt_encoder_handle_t copy_encoder;
+static rmt_encoder_handle_t led_encoder;
 static const rmt_transmit_config_t TRANSMIT_CONFIG = {
     .loop_count = 0,
 };
@@ -86,26 +77,16 @@ static esp_err_t wait_all_done_retry(rmt_channel_handle_t channel) {
     return ESP_ERR_TIMEOUT;
 }
 
-static inline void encode_run(unsigned int run_index, const uint8_t *rgb_data)
+static inline void convert_run_to_grb(unsigned int run_index, const uint8_t *rgb_data)
 {
-    rmt_symbol_word_t *items = rmt_items[run_index];
-    size_t item_index = 0;
+    uint8_t *grb = grb_buffers[run_index];
     for (unsigned int led_index = 0; led_index < LED_COUNT[run_index]; ++led_index) {
         uint8_t red = rgb_data[led_index * 3];
         uint8_t green = rgb_data[led_index * 3 + 1];
         uint8_t blue = rgb_data[led_index * 3 + 2];
-        uint8_t grb[3] = {green, red, blue};
-        for (int color = 0; color < 3; ++color) {
-            uint8_t value = grb[color];
-            for (int bit = 7; bit >= 0; --bit) {
-                bool bit_set = value & (1 << bit);
-                items[item_index].duration0 = bit_set ? RMT_T1H_TICKS : RMT_T0H_TICKS;
-                items[item_index].level0 = 1;
-                items[item_index].duration1 = bit_set ? RMT_T1L_TICKS : RMT_T0L_TICKS;
-                items[item_index].level1 = 0;
-                ++item_index;
-            }
-        }
+        grb[led_index * 3] = green;
+        grb[led_index * 3 + 1] = red;
+        grb[led_index * 3 + 2] = blue;
     }
 }
 
@@ -116,22 +97,23 @@ static bool frame_is_newer(uint32_t a, uint32_t b)
 
 static void send_frame(int slot_index)
 {
-    // Protect buffers while we read/encode
+    // Protect buffers while we read/convert
     rx_task_lock();
     for (unsigned int run = 0; run < RUN_COUNT; ++run) {
         const uint8_t *buffer = rx_task_get_run_buffer(slot_index, run);
-        encode_run(run, buffer); // fills rmt_items[run] / rmt_item_count[run]
+        convert_run_to_grb(run, buffer);
     }
     rx_task_unlock();
 
-    // Transmit each run sequentially
     for (unsigned int run = 0; run < RUN_COUNT; ++run) {
         ESP_ERROR_CHECK(rmt_transmit(
             rmt_channels[run],
-            copy_encoder,
-            rmt_items[run],
-            sizeof(rmt_symbol_word_t) * rmt_item_count[run],
+            led_encoder,
+            grb_buffers[run],
+            LED_COUNT[run] * 3,
             &TRANSMIT_CONFIG));
+    }
+    for (unsigned int run = 0; run < RUN_COUNT; ++run) {
         wait_all_done_retry(rmt_channels[run]);
     }
 }
@@ -140,15 +122,13 @@ static void send_frame(int slot_index)
 static void send_black(void)
 {
     for (unsigned int run_index = 0; run_index < RUN_COUNT; ++run_index) {
-        size_t led_count = LED_COUNT[run_index];
-        size_t byte_count = led_count * 3;
-        uint8_t *zero_buffer = (uint8_t *)calloc(byte_count, 1);
-        encode_run(run_index, zero_buffer);
-        free(zero_buffer);
-        ESP_ERROR_CHECK(rmt_transmit(rmt_channels[run_index], copy_encoder,
-                                     rmt_items[run_index],
-                                     sizeof(rmt_symbol_word_t) * rmt_item_count[run_index],
+        size_t byte_count = LED_COUNT[run_index] * 3;
+        memset(grb_buffers[run_index], 0, byte_count);
+        ESP_ERROR_CHECK(rmt_transmit(rmt_channels[run_index], led_encoder,
+                                     grb_buffers[run_index], byte_count,
                                      &TRANSMIT_CONFIG));
+    }
+    for (unsigned int run_index = 0; run_index < RUN_COUNT; ++run_index) {
         wait_all_done_retry(rmt_channels[run_index]);
         esp_rom_delay_us(60);
     }
@@ -158,18 +138,14 @@ static void flash_run(unsigned int run_index,
                       uint8_t red, uint8_t green, uint8_t blue)
 {
     size_t led_count = LED_COUNT[run_index];
-    size_t byte_count = led_count * 3;
-    uint8_t *rgb_buffer = (uint8_t *)malloc(byte_count);
+    uint8_t *buffer = grb_buffers[run_index];
     for (unsigned int led = 0; led < led_count; ++led) {
-        rgb_buffer[led * 3] = red;
-        rgb_buffer[led * 3 + 1] = green;
-        rgb_buffer[led * 3 + 2] = blue;
+        buffer[led * 3] = green;
+        buffer[led * 3 + 1] = red;
+        buffer[led * 3 + 2] = blue;
     }
-    encode_run(run_index, rgb_buffer);
-    free(rgb_buffer);
-    ESP_ERROR_CHECK(rmt_transmit(rmt_channels[run_index], copy_encoder,
-                                 rmt_items[run_index],
-                                 sizeof(rmt_symbol_word_t) * rmt_item_count[run_index],
+    ESP_ERROR_CHECK(rmt_transmit(rmt_channels[run_index], led_encoder,
+                                 buffer, led_count * 3,
                                  &TRANSMIT_CONFIG));
     wait_all_done_retry(rmt_channels[run_index]);
 }
@@ -181,8 +157,10 @@ static void delay_ms(uint32_t ms)
 
 static void driver_task(void *arg)
 {
-    rmt_copy_encoder_config_t copy_config = {};
-    ESP_ERROR_CHECK(rmt_new_copy_encoder(&copy_config, &copy_encoder));
+    led_strip_encoder_config_t encoder_config = {
+        .resolution = 80000000 / RMT_CLK_DIV,
+    };
+    ESP_ERROR_CHECK(rmt_new_led_strip_encoder(&encoder_config, &led_encoder));
 
     for (unsigned int run = 0; run < RUN_COUNT; ++run) {
         rmt_tx_channel_config_t channel_config = {
@@ -194,9 +172,8 @@ static void driver_task(void *arg)
         };
         ESP_ERROR_CHECK(rmt_new_tx_channel(&channel_config, &rmt_channels[run]));
         ESP_ERROR_CHECK(rmt_enable(rmt_channels[run]));
-        rmt_item_count[run] = LED_COUNT[run] * 24;
-        rmt_items[run] = (rmt_symbol_word_t *)malloc(sizeof(rmt_symbol_word_t) * rmt_item_count[run]);
-        memset(rmt_items[run], 0, sizeof(rmt_symbol_word_t) * rmt_item_count[run]);
+        grb_buffers[run] = (uint8_t *)malloc(LED_COUNT[run] * 3);
+        memset(grb_buffers[run], 0, LED_COUNT[run] * 3);
     }
 
     send_black();
