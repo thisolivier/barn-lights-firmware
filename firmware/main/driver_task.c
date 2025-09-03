@@ -28,9 +28,9 @@ _Static_assert(RMT_T0H_TICKS + RMT_T0L_TICKS == RMT_TICKS_PER_BIT, "T0 timing");
 _Static_assert(RMT_T1H_TICKS + RMT_T1L_TICKS == RMT_TICKS_PER_BIT, "T1 timing");
 
 #define RUN0_GPIO 12
-#define RUN1_GPIO 13
-#define RUN2_GPIO 14
-#define RUN3_GPIO 15
+#define RUN1_GPIO 14
+#define RUN2_GPIO 15
+#define RUN3_GPIO 36
 
 static const gpio_num_t RUN_GPIO[] = {
     RUN0_GPIO
