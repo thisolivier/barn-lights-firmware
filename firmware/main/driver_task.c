@@ -4,6 +4,7 @@
 #include "rx_task.h"
 #include "status_task.h"
 #include "startup_sequence.h"
+#include "frame_utils.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -107,11 +108,6 @@ static inline void encode_run(unsigned int run_index, const uint8_t *rgb_data)
             }
         }
     }
-}
-
-static bool frame_is_newer(uint32_t a, uint32_t b)
-{
-    return (int32_t)(a - b) > 0;
 }
 
 static void send_frame(int slot_index)
@@ -231,7 +227,7 @@ static void driver_task(void *arg)
         rx_task_lock();
         for (int slot = 0; slot < 2; ++slot) {
             uint32_t frame_id = rx_task_get_frame_id(slot);
-            if (frame_is_newer(frame_id, selected_id)) {
+            if (frame_is_newer_with_reset(frame_id, selected_id, FRAME_RESET_THRESHOLD)) {
                 bool frame_complete = true;
                 for (unsigned int run = 0; run < RUN_COUNT; ++run) {
                     if (!rx_task_run_received(slot, run)) {

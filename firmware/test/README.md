@@ -14,5 +14,7 @@ cmake --build firmware/test/build
 ./firmware/test/build/test_rx_task
 ./firmware/test/build/test_status_task
 ./firmware/test/build/test_driver_task
+./firmware/test/build/test_startup_sequence
+./firmware/test/build/test_frame_utils
 ```
 
