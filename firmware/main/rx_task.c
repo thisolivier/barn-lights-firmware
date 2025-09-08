@@ -2,6 +2,7 @@
 
 #include "config_autogen.h"
 #include "status_task.h"
+#include "frame_utils.h"
 
 #include <stdbool.h>
 #include <stdlib.h>
@@ -46,10 +47,6 @@ void rx_task_unlock(void) {
     xSemaphoreGiveRecursive(frame_mutex);
 }
 
-static bool frame_is_newer(uint32_t a, uint32_t b) {
-    return (int32_t)(a - b) > 0;
-}
-
 static void allocate_buffers(void) {
     for (int slot = 0; slot < 2; ++slot) {
         frame_buffers[slot] = (uint8_t **)malloc(sizeof(uint8_t *) * RUN_COUNT);
@@ -91,8 +88,9 @@ void rx_task_process_packet(unsigned int run_index, const uint8_t *data, size_t 
         target_slot = current_slot;
     } else if (frame_id == next_slot->frame_id) {
         target_slot = next_slot;
-    } else if (frame_is_newer(frame_id, current_slot->frame_id)) {
-        if (next_slot->frame_id == 0 || frame_is_newer(next_slot->frame_id, frame_id)) {
+    } else if (frame_is_newer_with_reset(frame_id, current_slot->frame_id, FRAME_RESET_THRESHOLD)) {
+        if (next_slot->frame_id == 0 ||
+            frame_is_newer_with_reset(next_slot->frame_id, frame_id, FRAME_RESET_THRESHOLD)) {
             clear_slot(next_slot);
             next_slot->frame_id = frame_id;
             target_slot = next_slot;

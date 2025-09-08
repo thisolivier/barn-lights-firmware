@@ -49,3 +49,10 @@ add_executable(test_driver_task
 
 target_link_libraries(test_driver_task unity)
 
+add_executable(test_frame_utils
+    test_frame_utils.c
+)
+
+target_include_directories(test_frame_utils PRIVATE ../main)
+target_link_libraries(test_frame_utils unity)
+

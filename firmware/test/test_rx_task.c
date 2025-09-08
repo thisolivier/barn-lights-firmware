@@ -76,10 +76,31 @@ void test_frame_slots_only_keep_current_and_next(void) {
     free(packet);
 }
 
+void test_frame_id_restart_handled(void) {
+    size_t len = 4 + LED_COUNT[0] * 3;
+    uint8_t *packet = (uint8_t *)malloc(len);
+    memset(packet, 0, len);
+
+    // Establish a high frame id as the current frame.
+    packet[2] = 0x13; // 5000 >> 8
+    packet[3] = 0x88; // 5000 & 0xFF
+    rx_task_process_packet(0, packet, len);
+    TEST_ASSERT_EQUAL_UINT32(5000, rx_task_get_frame_id(0));
+
+    // Simulate sender restart with frame id 1.
+    memset(packet, 0, len);
+    packet[3] = 1;
+    rx_task_process_packet(0, packet, len);
+    TEST_ASSERT_EQUAL_UINT32(1, rx_task_get_frame_id(1));
+
+    free(packet);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_invalid_length_ignored);
     RUN_TEST(test_copy_payload_without_reordering);
     RUN_TEST(test_frame_slots_only_keep_current_and_next);
+    RUN_TEST(test_frame_id_restart_handled);
     return UNITY_END();
 }
