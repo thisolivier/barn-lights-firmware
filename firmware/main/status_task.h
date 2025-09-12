@@ -12,4 +12,6 @@ void status_task_increment_applied(void);
 void status_task_increment_drops(void);
 void status_task_reset_counters(void);
 
-size_t status_task_format_json(char *buffer, size_t buffer_len, uint32_t uptime_ms, bool link);
+size_t status_task_format_json(char *buffer, size_t buffer_len, uint32_t uptime_ms, bool link,
+                               uint32_t free_heap_total, uint32_t free_heap_internal,
+                               uint32_t largest_free_block);

@@ -35,22 +35,26 @@ void status_task_reset_counters(void) {
     dropped_count = 0;
 }
 
-size_t status_task_format_json(char *buffer, size_t buffer_len, uint32_t uptime_ms, bool link) {
+size_t status_task_format_json(char *buffer, size_t buffer_len, uint32_t uptime_ms, bool link,
+                               uint32_t free_heap_total, uint32_t free_heap_internal,
+                               uint32_t largest_free_block) {
     char ip_str[16];
     snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u", STATIC_IP_ADDR0, STATIC_IP_ADDR1, STATIC_IP_ADDR2, STATIC_IP_ADDR3);
     size_t offset = 0;
     offset += snprintf(buffer + offset, buffer_len - offset,
                        "{\"id\":\"%s\",\"ip\":\"%s\",\"uptime_ms\":%" PRIu32 ",\"link\":%s,\"runs\":%u,\"leds\":[",
                        SIDE_ID_STR, ip_str, uptime_ms, link ? "true" : "false", RUN_COUNT);
-    for (unsigned int i = 0; i < RUN_COUNT; ++i) {
-        offset += snprintf(buffer + offset, buffer_len - offset, "%u", LED_COUNT[i]);
-        if (i + 1 < RUN_COUNT) {
+    for (unsigned int run_index = 0; run_index < RUN_COUNT; ++run_index) {
+        offset += snprintf(buffer + offset, buffer_len - offset, "%u", LED_COUNT[run_index]);
+        if (run_index + 1 < RUN_COUNT) {
             offset += snprintf(buffer + offset, buffer_len - offset, ",");
         }
     }
     offset += snprintf(buffer + offset, buffer_len - offset,
-                       "],\"rx_frames\":%" PRIu32 ",\"complete\":%" PRIu32 ",\"applied\":%" PRIu32 ",\"dropped_frames\":%" PRIu32 ",\"errors\":[]}",
-                       rx_frames_count, complete_count, applied_count, dropped_count);
+                       "],\"rx_frames\":%" PRIu32 ",\"complete\":%" PRIu32 ",\"applied\":%" PRIu32 ",\"dropped_frames\":%" PRIu32 ","
+                       "\"mem_free_total\":%" PRIu32 ",\"mem_free_internal\":%" PRIu32 ",\"mem_largest_block\":%" PRIu32 ",\"errors\":[]}",
+                       rx_frames_count, complete_count, applied_count, dropped_count,
+                       free_heap_total, free_heap_internal, largest_free_block);
     return offset;
 }
 
@@ -60,6 +64,7 @@ size_t status_task_format_json(char *buffer, size_t buffer_len, uint32_t uptime_
 #include "lwip/inet.h"
 #include "lwip/sockets.h"
 #include "esp_timer.h"
+#include "esp_heap_caps.h"
 
 static void status_task(void *param) {
     int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -74,7 +79,11 @@ static void status_task(void *param) {
     char json[256];
     for (;;) {
         uint32_t uptime_ms = (uint32_t)(esp_timer_get_time() / 1000);
-        status_task_format_json(json, sizeof(json), uptime_ms, true);
+        uint32_t free_heap_total = (uint32_t)esp_get_free_heap_size();
+        uint32_t free_heap_internal = (uint32_t)heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+        uint32_t largest_free_block = (uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+        status_task_format_json(json, sizeof(json), uptime_ms, true, free_heap_total,
+                               free_heap_internal, largest_free_block);
         sendto(sock, json, strlen(json), 0, (struct sockaddr *)&dest, sizeof(dest));
         status_task_reset_counters();
         vTaskDelay(pdMS_TO_TICKS(1000));
