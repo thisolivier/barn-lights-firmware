@@ -1,8 +1,9 @@
 #include "receiver.h"
 #include "config_autogen.h"
 #include "led_driver.h"
-#include <Arduino.h>
+#include "hal/hal.h"
 #include <cstring>
+#include <cstdio>
 
 // Packet header offsets
 static const size_t HEADER_SIZE = 6;
@@ -76,6 +77,11 @@ static uint32_t read_u32_be(const uint8_t* data) {
 void receiver_init() {
     frame_size = calculate_frame_size();
 
+    // Free old buffer if re-initializing
+    if (frame_buffer != nullptr) {
+        delete[] frame_buffer;
+    }
+
     // Allocate buffer for 2 frame slots
     frame_buffer = new uint8_t[frame_size * NUM_SLOTS];
     memset(frame_buffer, 0, frame_size * NUM_SLOTS);
@@ -88,6 +94,13 @@ void receiver_init() {
         slots[i].rgb_data = frame_buffer + (i * frame_size);
     }
 
+    // Reset session tracking
+    current_session_id = 0;
+    session_initialized = false;
+    last_applied_frame_id = 0;
+    complete_frame = nullptr;
+
+    // Reset stats and error
     stats = {0};
     has_error = false;
 }
@@ -160,7 +173,7 @@ void receiver_handle_packet(uint8_t run_index, const uint8_t* data, size_t len) 
     if (!session_initialized || session_id != current_session_id) {
         snprintf(error_buffer, sizeof(error_buffer),
                  "%lu: session change %u -> %u",
-                 millis(), current_session_id, session_id);
+                 (unsigned long)hal::millis(), current_session_id, session_id);
         has_error = true;
 
         current_session_id = session_id;

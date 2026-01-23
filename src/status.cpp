@@ -2,23 +2,23 @@
 #include "config_autogen.h"
 #include "network.h"
 #include "receiver.h"
-#include <Arduino.h>
+#include "hal/hal.h"
 #include <cstdio>
 
 static const uint32_t HEARTBEAT_INTERVAL_MS = 1000;
 static uint32_t startup_time_ms = 0;
 static uint32_t last_heartbeat_ms = 0;
 
-// JSON buffer (spec says ≤256 bytes)
+// JSON buffer (spec says <=256 bytes)
 static char json_buffer[512];
 
 void status_init() {
-    startup_time_ms = millis();
-    last_heartbeat_ms = millis();
+    startup_time_ms = hal::millis();
+    last_heartbeat_ms = hal::millis();
 }
 
 void status_poll() {
-    uint32_t now = millis();
+    uint32_t now = hal::millis();
 
     if (now - last_heartbeat_ms < HEARTBEAT_INTERVAL_MS) {
         return;
@@ -40,7 +40,7 @@ void status_poll() {
                     "{\"id\":\"%s\",\"ip\":\"%s\",\"uptime_ms\":%lu,\"link\":%s,\"runs\":%d,\"leds\":[",
                     SIDE_ID,
                     network_get_ip_string(),
-                    now - startup_time_ms,
+                    (unsigned long)(now - startup_time_ms),
                     network_link_up() ? "true" : "false",
                     RUN_COUNT);
 
@@ -54,10 +54,10 @@ void status_poll() {
 
     pos += snprintf(json_buffer + pos, sizeof(json_buffer) - pos,
                     "],\"rx_frames\":%lu,\"complete\":%lu,\"applied\":%lu,\"dropped_frames\":%lu,\"errors\":[",
-                    stats.rx_frames,
-                    stats.complete_frames,
-                    stats.applied_frames,
-                    stats.drops_len + stats.drops_stale);
+                    (unsigned long)stats.rx_frames,
+                    (unsigned long)stats.complete_frames,
+                    (unsigned long)stats.applied_frames,
+                    (unsigned long)(stats.drops_len + stats.drops_stale));
 
     // Error array
     if (error != nullptr) {

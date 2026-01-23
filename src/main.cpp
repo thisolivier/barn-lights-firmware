@@ -1,14 +1,15 @@
-#include <Arduino.h>
 #include "config_autogen.h"
+#include "hal/hal.h"
 #include "led_driver.h"
 #include "network.h"
 #include "receiver.h"
 #include "status.h"
 #include "led_status.h"
+#include <cstdio>
 
-void setup() {
+extern "C" void setup() {
     // Initialize serial for debugging (optional)
-    Serial.begin(115200);
+    hal::serial_init(115200);
 
     // Initialize LED driver first (sets LEDs black)
     driver_init();
@@ -25,16 +26,17 @@ void setup() {
     // Initialize onboard LED indicator
     led_status_init();
 
-    Serial.println("Teensy LED Controller initialized");
-    Serial.print("Side: ");
-    Serial.println(SIDE_ID);
-    Serial.print("Runs: ");
-    Serial.println(RUN_COUNT);
-    Serial.print("IP: ");
-    Serial.println(network_get_ip_string());
+    char buf[64];
+    hal::serial_println("Teensy LED Controller initialized");
+    snprintf(buf, sizeof(buf), "Side: %s", SIDE_ID);
+    hal::serial_println(buf);
+    snprintf(buf, sizeof(buf), "Runs: %d", RUN_COUNT);
+    hal::serial_println(buf);
+    snprintf(buf, sizeof(buf), "IP: %s", network_get_ip_string());
+    hal::serial_println(buf);
 }
 
-void loop() {
+extern "C" void loop() {
     // Poll network for incoming UDP packets
     network_poll();
 
