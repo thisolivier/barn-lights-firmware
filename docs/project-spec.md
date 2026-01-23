@@ -32,22 +32,22 @@ This document defines the firmware for the Teensy 4.1 with native Ethernet, such
 
 **Ethernet:** Uses dedicated pins on the Teensy 4.1 (directly connected to the PHY). No conflicts with GPIO.
 
-**OctoWS2811 LED Data Pins:** OctoWS2811 on Teensy 4.x uses FlexIO + DMA hardware. The standard pinout for 8 outputs:
+**OctoWS2811 Adapter CAT6 Wire Mapping:** The OctoWS2811 adapter uses a CAT6 cable (T568B wiring) to connect to LED strips:
 
-| Output | Pin | Notes |
-|--------|-----|-------|
-| RUN0   | 19  | |
-| RUN1   | 18  | |
-| RUN2   | 14  | |
-| RUN3   | 15  | |
-| RUN4   | 17  | (optional) |
-| RUN5   | 16  | (optional) |
-| RUN6   | 22  | (optional) |
-| RUN7   | 23  | (optional) |
+| Output | Wire Color (T568B) | Twisted Pair |
+|--------|-------------------|--------------|
+| 0 | White-Orange | Orange pair |
+| 1 | Orange | Orange pair |
+| 2 | White-Green | Green pair |
+| 3 | Blue | Blue pair |
+| 4 | White-Blue | Blue pair |
+| 5 | Green | Green pair |
+| 6 | White-Brown | Brown pair |
+| 7 | Brown | Brown pair |
 
 **Onboard LED:** Pin 13 (directly usable for status indication).
 
-**Note:** OctoWS2811 pins are fixed by hardware design and cannot be arbitrarily reassigned. If fewer than 8 runs are needed, unused outputs are simply left unconnected. Active-low accent LED on pin 13 is directly adjacent to the Ethernet jack on the Teensy 4.1.
+**Note:** OctoWS2811 uses fixed Teensy pins internally (directly connected via the adapter board). If fewer than 8 runs are needed, unused outputs are simply left unconnected.
 
 
 
