@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git worktree:*)",
+      "Bash(tree:*)",
+      "Bash(lsof:*)",
+      "Bash(echo:*)",
+      "Bash(ls:*)",
+      "Bash(pkill:*)",
+      "Bash(xargs:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh pr create:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(grep:*)",
+      "Bash(gh pr view:*)",
+      "Bash(WORKTREE_PATH:*)",
+      "Bash(git -C:*)",
+      "Bash(curl:*)",
+      "Bash(kill:*)",
+      "Bash(launchctl list:*)",
+      "Bash(git branch:*)",
+      "Bash(git reset:*)",
+      "Bash(cmake:*)",
+      "Bash(idf.py:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(make:*)",
+      "Bash(./firmware/test/build/test_udp_comms:*)",
+      "Bash(./firmware/test/build/test_protocol:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(rm:*)",
+      "Bash(date:*)",
+      "Bash(test:*)",
+      "Bash(which:*)",
+      "Bash(cat:*)"
+    ]
+  }
+}
