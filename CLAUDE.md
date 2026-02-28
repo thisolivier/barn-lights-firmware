@@ -2,7 +2,8 @@
 
 ## Project Overview
 
-- This is a stair lights firmware project for ESP32 using ESP-IDF.
+- This is a stair lights firmware project for ESP32 using ESP-IDF (v5.2+).
+- Target board: **WT32-ETH01** (ESP32 + LAN8720 RMII Ethernet).
 - The `udp_comms` component is a reusable module extracted from the barn-lights project.
 - Application code (sensor, lighting, protocol) lives in `firmware/main/`.
 - Host-side tests use Unity and compile with `-DUNIT_TEST` to stub ESP-IDF dependencies.
