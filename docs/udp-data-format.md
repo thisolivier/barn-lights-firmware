@@ -1,16 +1,38 @@
-# UDP Data Format
+# UDP Data Format — Stair Lights
 
-Each frame is broken into runs and transmitted to the controllers as UDP datagrams. For a given side the destination IP is specified in sender.config.json and each run is sent to portBase + run_index.
+Two independent UDP channels carry data between a laptop and the ESP32.
 
-The UDP payload layout is:
+## Config channel (laptop -> ESP32)
 
-| Offset |  Size |  Description |
-|--------|-------|--------------|
-| 0      | 4     | frame_id (unsigned 32-bit big-endian)|
-| 4      | N     | RGB data for the run (run_led_count * 3 bytes)|
+Port: `49701` (configurable via `UDP_CONFIG_PORT`)
 
-RGB bytes are in physical LED order with one 8-bit value for each of red, green and blue.
+| Offset | Size | Description |
+|--------|------|-------------|
+| 0 | 1 | Command type |
+| 1 | N | Command payload |
 
-The frame_id matches the frame value emitted by the renderer and wraps at 2^32.
+### Command types
 
-Controllers should only display a frame after receiving all runs for a side with the same frame_id; otherwise the last complete frame should remain visible.
+| Type | Name | Payload |
+|------|------|---------|
+| 0x01 | SET_STEP_BRIGHTNESS | step_index (1 byte) + brightness (2 bytes big-endian) |
+| 0x02 | SET_ALL_BRIGHTNESS | brightness (2 bytes big-endian) |
+| 0x03 | SET_THRESHOLD | step_index (1 byte) + threshold (2 bytes big-endian) |
+| 0x04 | SET_TELEMETRY_RATE | interval_ms (4 bytes big-endian) |
+
+## Telemetry channel (ESP32 -> laptop)
+
+Port: `49700` (configurable via `UDP_TELEMETRY_PORT`)
+
+Sent at a configurable rate (default 10 Hz). 104 bytes per packet.
+
+| Offset | Size | Description |
+|--------|------|-------------|
+| 0-3 | 4 | uptime_ms (big-endian) |
+| 4-5 | 2 | sequence_number (big-endian) |
+| 6-7 | 2 | sample_rate_hz (big-endian) |
+| 8-39 | 32 | latest_adc_values[16] (2 bytes each, big-endian) |
+| 40-71 | 32 | peak_adc_values[16] (2 bytes each, big-endian) |
+| 72-103 | 32 | brightness_values[16] (2 bytes each, big-endian) |
+
+All multi-byte integers are unsigned big-endian.

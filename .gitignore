@@ -3,6 +3,9 @@ build/
 sdkconfig
 sdkconfig.old
 
+# Host test build artifacts
+firmware/test/build/
+
 # Python cache
 __pycache__/
 *.py[cod]

@@ -1,51 +1,36 @@
-cmake_minimum_required(VERSION 3.14)
-project(firmware_tests C)
+cmake_minimum_required(VERSION 3.16)
+project(stair-lights-tests C)
 
 include(FetchContent)
-
 FetchContent_Declare(
     unity
     GIT_REPOSITORY https://github.com/ThrowTheSwitch/Unity.git
     GIT_TAG v2.5.2
 )
-FetchContent_GetProperties(unity)
-if(NOT unity_POPULATED)
-    FetchContent_Populate(unity)
-    add_library(unity ${unity_SOURCE_DIR}/src/unity.c)
-    target_include_directories(unity PUBLIC ${unity_SOURCE_DIR}/src)
-endif()
+FetchContent_MakeAvailable(unity)
 
-add_executable(test_rx_task
-    test_rx_task.c
-    ../main/rx_task.c
-    ../main/status_task.c
+add_compile_definitions(UNIT_TEST)
+
+# Test: udp_comms init/validation
+add_executable(test_udp_comms
+    test_udp_comms.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../components/udp_comms/udp_comms.c
 )
-
-target_include_directories(test_rx_task PRIVATE ../include ../main)
-target_compile_definitions(test_rx_task PRIVATE UNIT_TEST)
-target_link_libraries(test_rx_task unity)
-
-add_executable(test_status_task
-    test_status_task.c
-    ../main/status_task.c
+target_include_directories(test_udp_comms PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../components/udp_comms/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../main
 )
+target_link_libraries(test_udp_comms PRIVATE unity)
 
-target_include_directories(test_status_task PRIVATE ../include ../main)
-target_compile_definitions(test_status_task PRIVATE UNIT_TEST)
-target_link_libraries(test_status_task unity)
-
-add_executable(test_startup_sequence
-    test_startup_sequence.c
-    ../main/startup_sequence.c
+# Test: protocol pack/parse
+add_executable(test_protocol
+    test_protocol.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../main/protocol.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../main/sensor.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../main/lighting.c
 )
-
-target_include_directories(test_startup_sequence PRIVATE ../include ../main)
-target_compile_definitions(test_startup_sequence PRIVATE UNIT_TEST)
-target_link_libraries(test_startup_sequence unity)
-
-add_executable(test_driver_task
-    test_driver_task.c
+target_include_directories(test_protocol PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../main
+    ${CMAKE_CURRENT_SOURCE_DIR}/../components/udp_comms/include
 )
-
-target_link_libraries(test_driver_task unity)
-
+target_link_libraries(test_protocol PRIVATE unity)

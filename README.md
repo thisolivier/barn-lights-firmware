@@ -1,120 +1,54 @@
-# Barn Lights Firmware
+# Stair Lights Firmware
 
-Utilities and firmware for the barn lights project.
+ESP-IDF firmware for an ESP32 driving 16 stair-step piezo sensors and LED strips over WiFi, with UDP-based telemetry and config.
 
-## Documentation
+## Architecture
 
-Additional guides live in the [docs](docs) directory:
+```
+firmware/
+├── main/           Application code (sensor, lighting, protocol, main)
+├── components/
+│   └── udp_comms/  Reusable WiFi + UDP comms component (config rx, telemetry tx)
+└── test/           Host-side unit tests (Unity)
+tools/              Laptop-side utilities (monitor.py)
+docs/               Protocol and data format documentation
+```
 
-- [ESP-IDF environment setup](docs/ESP-IDF.md)
-- [Flashing guide](docs/flash-guide.md)
-- [Project specification](docs/project-spec.md)
-- [UDP data format](docs/udp-data-format.md)
+### udp_comms component
+
+A self-contained ESP-IDF component providing:
+- WiFi STA connection with retry
+- Config inbound channel: listens on a UDP port, calls an app callback with raw payload
+- Telemetry outbound channel: at a configurable interval, calls an app callback to fill a buffer, sends it as UDP
+
+The component has no knowledge of stairs, piezos, or LEDs. It moves bytes.
 
 ## Development
 
-### Install Python dependencies:
+### Run host-side tests
 
-You should optionally setup a virtual environment first with:
-```
-python -m venv venv
-source venv/bin/activate
-```
-Then install your dependencies:
-```
-python -m pip install -r tools/requirements.txt
-```
-
-### Run tests:
-For ESP-IDF unit tests and more details on the testing strategy, see
-[`tests/readme.md`](tests/readme.md). These commands will run the various test suites:
-
-```
-pytest
+```bash
 cmake -S firmware/test -B firmware/test/build
 cmake --build firmware/test/build
-./firmware/test/build/test_rx_task
-```
-To execute all test suites sequentially, run:
-
-```
-./tools/run_all_tests.sh
+./firmware/test/build/test_udp_comms
+./firmware/test/build/test_protocol
 ```
 
-## Deploying Code
+### Build firmware (requires ESP-IDF)
 
-### Build firmware (requires ESP-IDF):
-
-1. Generate the layout config (here's the sample for the left side, see tools/readme.md)
-```
-python tools/gen_config.py --layout config/left.json
-```
-2. Set up your ESP-IDF environment (see [ESP-IDF setup](docs/ESP-IDF.md)).
-3. Activate ESP-IDF and test it's in your session path:
-```
+```bash
 . ~/esp/esp-idf/export.sh
-idf.py --version
-```
-3. Run the command below
-
-```
 cd firmware
-idf.py fullclean
 idf.py set-target esp32
 idf.py build
 ```
 
-### Flash the ESP32 device
+### Flash
 
-See [flash guide](docs/flash-guide.md)
-
-### Convenience scripts
-
-To build the application and generate configuration, run:
-
-```
-./tools/build_app.sh
+```bash
+idf.py -p /dev/ttyUSB0 flash monitor
 ```
 
-## Connecting Lights
+## Documentation
 
-* Run 0 → GPIO 12
-* Run 1 → GPIO 13
-* Run 2 → GPIO 14
-
-## Debugging
-
-### Find out ESP32 port
-1. Unplug the adapter.
-2. In Terminal:
-```
-ls -1 /dev/tty.* /dev/cu.* > /tmp/ports_before.txt
-```
-3. Plug in the adapter, wait 3–5 s, then:
-```
-ls -1 /dev/tty.* /dev/cu.* > /tmp/ports_after.txt
-diff /tmp/ports_before.txt /tmp/ports_after.txt
-```
-
-### Check ESP connection
-To check if your device is reachable on network:
-```
-python -m esptool --chip esp32 -p /dev/cu.YOURPORT -b 115200 read_mac
-```
-With your port, that would look something like 
-```
-python -m esptool --chip esp32 -p /dev/cu.usbserial-0001 -b 115200 read_mac
-```
-
-To open a serial monitor using your serial conversion device (the thing you flashed the ESP32 with):
-```
-idf.py -p /dev/cu.usbserial-0001 --baud 115200 monitor
-```
-`ctrl+t x` to exit
-
-(Mac is 34:ab:95:7e:96:38)
-
-### Mintoring telemetry
-```
-nc -ul 49700
-```
+- [UDP data format](docs/udp-data-format.md)

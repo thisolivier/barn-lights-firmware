@@ -3,7 +3,7 @@
 - Keep code readable by verbose variable names - never abbreviate to a single letter.
 - Keep dependencies minimal.
 - Prefer simple low-code solutions to complex ones where possible.
-- Pro-actively modularize the code 
+- Pro-actively modularize the code
 - - Split groups of functions into separate files with clean interfaces.
 - - Prefer file lengths of less than 200 lines (light preference).
 - - Add readme.md files at the root of each module to describe the architecture and subcomponents.
@@ -11,9 +11,12 @@
 
 Your work is deeply appreciated.
 
-## Paths not to modify
-./projectSpec.md
+## Project context
+- This is a stair lights firmware project for ESP32 using ESP-IDF.
+- The `udp_comms` component is a reusable module extracted from the barn-lights project.
+- Application code (sensor, lighting, protocol) lives in `firmware/main/`.
+- Host-side tests use Unity and compile with `-DUNIT_TEST` to stub ESP-IDF dependencies.
 
-## Project Spec
-- projectSpec.md contains a detailed specification of the whole project
-- In the event of confusion, refer to the project spec for context
+## Testing
+- Run host tests: `cmake -S firmware/test -B firmware/test/build && cmake --build firmware/test/build`
+- Execute: `./firmware/test/build/test_udp_comms` and `./firmware/test/build/test_protocol`
